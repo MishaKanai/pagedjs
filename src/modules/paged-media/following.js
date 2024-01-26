@@ -1,7 +1,16 @@
 import Handler from "../handler.js";
 import csstree from "css-tree";
-import {UUID} from "../../utils/utils.js";
+import { UUID } from "../../utils/utils.js";
 
+function querySelectorAllSafe(el, selector) {
+	const element = el ? el : document;
+	try {
+		return element.querySelectorAll(selector);
+	} catch (e) {
+		console.error(e);
+		return [];
+	}
+}
 class Following extends Handler {
 	constructor(chunker, polisher, caller) {
 		super(chunker, polisher, caller);
@@ -13,9 +22,8 @@ class Following extends Handler {
 	onRule(ruleNode, ruleItem, rulelist) {
 		let selector = csstree.generate(ruleNode.prelude);
 		if (selector.match(/\+/)) {
-			
 			let declarations = csstree.generate(ruleNode.block);
-			declarations = declarations.replace(/[{}]/g,"");
+			declarations = declarations.replace(/[{}]/g, "");
 
 			let uuid = "following-" + UUID();
 
@@ -23,7 +31,7 @@ class Following extends Handler {
 				if (!this.selectors[s]) {
 					this.selectors[s] = [uuid, declarations];
 				} else {
-					this.selectors[s][1] = `${this.selectors[s][1]};${declarations}` ;
+					this.selectors[s][1] = `${this.selectors[s][1]};${declarations}`;
 				}
 			});
 
@@ -38,7 +46,7 @@ class Following extends Handler {
 	processSelectors(parsed, selectors) {
 		// add the new attributes to matching elements
 		for (let s in selectors) {
-			let elements = parsed.querySelectorAll(s);
+			let elements = querySelectorAllSafe(parsed, s);
 
 			for (var i = 0; i < elements.length; i++) {
 				let dataFollowing = elements[i].getAttribute("data-following");
@@ -57,8 +65,4 @@ class Following extends Handler {
 	}
 }
 
-
-
-
 export default Following;
-

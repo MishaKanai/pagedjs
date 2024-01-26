@@ -29,7 +29,10 @@ class Page {
 		let page, index;
 		if (after) {
 			this.pagesArea.insertBefore(clone, after.nextElementSibling);
-			index = Array.prototype.indexOf.call(this.pagesArea.children, after.nextElementSibling);
+			index = Array.prototype.indexOf.call(
+				this.pagesArea.children,
+				after.nextElementSibling
+			);
 			page = this.pagesArea.children[index];
 		} else {
 			this.pagesArea.appendChild(clone);
@@ -40,12 +43,11 @@ class Page {
 		let area = page.querySelector(".pagedjs_page_content");
 		let footnotesArea = page.querySelector(".pagedjs_footnote_area");
 
-
 		let size = area.getBoundingClientRect();
 
-
 		area.style.columnWidth = Math.round(size.width) + "px";
-		area.style.columnGap = "calc(var(--pagedjs-margin-right) + var(--pagedjs-margin-left) + var(--pagedjs-bleed-right) + var(--pagedjs-bleed-left) + var(--pagedjs-column-gap-offset))";
+		area.style.columnGap =
+			"calc(var(--pagedjs-margin-right) + var(--pagedjs-margin-left) + var(--pagedjs-bleed-right) + var(--pagedjs-bleed-left) + var(--pagedjs-column-gap-offset))";
 		// area.style.overflow = "scroll";
 
 		this.width = Math.round(size.width);
@@ -122,7 +124,6 @@ class Page {
 	*/
 
 	async layout(contents, breakToken, maxChars) {
-
 		this.clear();
 
 		this.startToken = breakToken;
@@ -134,7 +135,11 @@ class Page {
 
 		this.layoutMethod = new Layout(this.area, this.hooks, settings);
 
-		let renderResult = await this.layoutMethod.renderTo(this.wrapper, contents, breakToken);
+		let renderResult = await this.layoutMethod.renderTo(
+			this.wrapper,
+			contents,
+			breakToken
+		);
 		let newBreakToken = renderResult.breakToken;
 
 		this.addListeners(contents);
@@ -145,12 +150,15 @@ class Page {
 	}
 
 	async append(contents, breakToken) {
-
 		if (!this.layoutMethod) {
 			return this.layout(contents, breakToken);
 		}
 
-		let renderResult = await this.layoutMethod.renderTo(this.wrapper, contents, breakToken);
+		let renderResult = await this.layoutMethod.renderTo(
+			this.wrapper,
+			contents,
+			breakToken
+		);
 		let newBreakToken = renderResult.breakToken;
 
 		this.endToken = newBreakToken;
@@ -186,9 +194,20 @@ class Page {
 		if (typeof ResizeObserver !== "undefined") {
 			this.addResizeObserver(contents);
 		} else {
-			this._checkOverflowAfterResize = this.checkOverflowAfterResize.bind(this, contents);
-			this.element.addEventListener("overflow", this._checkOverflowAfterResize, false);
-			this.element.addEventListener("underflow", this._checkOverflowAfterResize, false);
+			this._checkOverflowAfterResize = this.checkOverflowAfterResize.bind(
+				this,
+				contents
+			);
+			this.element.addEventListener(
+				"overflow",
+				this._checkOverflowAfterResize,
+				false
+			);
+			this.element.addEventListener(
+				"underflow",
+				this._checkOverflowAfterResize,
+				false
+			);
 		}
 		// TODO: fall back to mutation observer?
 
@@ -212,19 +231,25 @@ class Page {
 		if (typeof ResizeObserver !== "undefined" && this.ro) {
 			this.ro.disconnect();
 		} else if (this.element) {
-			this.element.removeEventListener("overflow", this._checkOverflowAfterResize, false);
-			this.element.removeEventListener("underflow", this._checkOverflowAfterResize, false);
+			this.element.removeEventListener(
+				"overflow",
+				this._checkOverflowAfterResize,
+				false
+			);
+			this.element.removeEventListener(
+				"underflow",
+				this._checkOverflowAfterResize,
+				false
+			);
 		}
 
 		this.element && this.element.removeEventListener("scroll", this._onScroll);
-
 	}
 
 	addResizeObserver(contents) {
 		let wrapper = this.wrapper;
 		let prevHeight = wrapper.getBoundingClientRect().height;
-		this.ro = new ResizeObserver(entries => {
-
+		this.ro = new ResizeObserver((entries) => {
 			if (!this.listening) {
 				return;
 			}
@@ -235,7 +260,8 @@ class Page {
 					if (cr.height > prevHeight) {
 						this.checkOverflowAfterResize(contents);
 						prevHeight = wrapper.getBoundingClientRect().height;
-					} else if (cr.height < prevHeight) { // TODO: calc line height && (prevHeight - cr.height) >= 22
+					} else if (cr.height < prevHeight) {
+						// TODO: calc line height && (prevHeight - cr.height) >= 22
 						this.checkUnderflowAfterResize(contents);
 						prevHeight = cr.height;
 					}
@@ -251,7 +277,12 @@ class Page {
 			return;
 		}
 
-		let newBreakToken = this.layoutMethod.findBreakToken(this.wrapper, contents, this.startToken);
+		let newBreakToken = this.layoutMethod.findBreakToken(
+			this.wrapper,
+			contents,
+			undefined,
+			this.startToken
+		);
 
 		if (newBreakToken) {
 			this.endToken = newBreakToken;
@@ -271,7 +302,6 @@ class Page {
 		}
 	}
 
-
 	destroy() {
 		this.removeListeners();
 
@@ -283,6 +313,5 @@ class Page {
 }
 
 EventEmitter(Page.prototype);
-
 
 export default Page;

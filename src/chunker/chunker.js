@@ -7,7 +7,7 @@ import {
 	requestIdleCallback
 } from "../utils/utils.js";
 
-const MAX_PAGES = false;
+const MAX_PAGES = null;
 const MAX_LAYOUTS = false;
 
 const TEMPLATE = `
@@ -99,13 +99,18 @@ class Chunker {
 		this.hooks.filter = new Hook(this);
 		this.hooks.afterParsed = new Hook(this);
 		this.hooks.beforePageLayout = new Hook(this);
+		this.hooks.onPageLayout = new Hook(this);
 		this.hooks.layout = new Hook(this);
 		this.hooks.renderNode = new Hook(this);
 		this.hooks.layoutNode = new Hook(this);
+		this.hooks.getOverflow = new Hook(this);
 		this.hooks.onOverflow = new Hook(this);
 		this.hooks.afterOverflowRemoved = new Hook(this);
+		this.hooks.afterOverflowAdded = new Hook(this);
 		this.hooks.onBreakToken = new Hook();
+		this.hooks.beforeRenderResult = new Hook(this);
 		this.hooks.afterPageLayout = new Hook(this);
+		this.hooks.finalizePage = new Hook(this);
 		this.hooks.afterRendered = new Hook(this);
 
 		this.pages = [];
@@ -321,39 +326,69 @@ class Chunker {
 			this.emit("page", page);
 			// await this.hooks.layout.trigger(page.element, page, undefined, this);
 			await this.hooks.afterPageLayout.trigger(page.element, page, undefined, this);
+			await this.hooks.finalizePage.trigger(page.element, page, undefined, this);
 			this.emit("renderedPage", page);
 		}
 	}
 
 	async *layout(content, startAt) {
 		let breakToken = startAt || false;
+		let page, prevPage, prevNumPages;
 
 		while (breakToken !== undefined && (MAX_PAGES ? this.total < MAX_PAGES : true)) {
 
-			if (breakToken && breakToken.node) {
-				await this.handleBreaks(breakToken.node);
-			} else {
-				await this.handleBreaks(content.firstChild);
+			let addedExtra = false;
+			let emptyBody = !page || !page.area.firstElementChild.childElementCount || !page.area.firstElementChild.firstElementChild.getBoundingClientRect().height;
+			let emptyFootnotes = !page || !page.footnotesArea.firstElementChild.childElementCount || !page.footnotesArea.firstElementChild.firstElementChild.getBoundingClientRect().height;
+			let emptyPage = (emptyBody && emptyFootnotes);
+
+			prevNumPages = this.total;
+
+			if (!page || !emptyPage) {
+				if (breakToken) {
+					if (breakToken.overflow.length && breakToken.overflow[0].node) {
+						// Overflow.
+						await this.handleBreaks(breakToken.overflow[0].node);
+					}
+					else {
+						await this.handleBreaks(breakToken.node);
+					}
+				} else {
+					await this.handleBreaks(content.firstChild);
+				}
 			}
 
-			let page = this.addPage();
+			addedExtra = this.total != prevNumPages;
+
+			// Don't add a page if we have a forced break now and we just
+			// did a break due to overflow but have nothing displayed on
+			// the current page, unless there's overflow and we're finished.
+			if (!page || addedExtra || !emptyPage) {
+				this.addPage();
+			}
+
+			page = this.pages[this.total - 1];
 
 			await this.hooks.beforePageLayout.trigger(page, content, breakToken, this);
 			this.emit("page", page);
 
 			// Layout content in the page, starting from the breakToken
-			breakToken = await page.layout(content, breakToken, this.maxChars);
+			if (breakToken) {
+				// Debugging tool - ensures previously rendered content is visible.
+				window.scrollTo(0, document.body.scrollHeight);
+			}
+			breakToken = await page.layout(content, breakToken, prevPage);
 
 			await this.hooks.afterPageLayout.trigger(page.element, page, breakToken, this);
+			await this.hooks.finalizePage.trigger(page.element, page, undefined, this);
 			this.emit("renderedPage", page);
+
+			prevPage = page.wrapper;
 
 			this.recoredCharLength(page.wrapper.textContent.length);
 
 			yield breakToken;
-
-			// Stop if we get undefined, showing we have reached the end of the content
 		}
-
 
 	}
 
@@ -515,6 +550,7 @@ class Chunker {
 		}
 
 		await this.hooks.afterPageLayout.trigger(page.element, page, undefined, this);
+		await this.hooks.finalizePage.trigger(page.element, page, undefined, this);
 		this.emit("renderedPage", page);
 	}
 
